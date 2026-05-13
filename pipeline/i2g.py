@@ -421,6 +421,11 @@ def run_eval(templates: dict):
             f.write(f"  {g}: {c}/{t} ({100*c/t:.0f}%)\n")
         f.write(f"\noverall: {overall}/{len(y_true)} ({100*overall/len(y_true):.0f}%)\n\n")
         f.write("confusion matrix\n")
+        f.write(f"{header}\n")
+        for i, row_label in enumerate(labels_present):
+            row = "".join(f"{v:>10}" for v in cm[i])
+            f.write(f"{row_label:>10}{row}\n")
+            
         f.write(f"{header} (predicted)\n")
         f.write("classification report\n")
         f.write(classification_report(y_true, y_pred, labels=labels_present, zero_division=0))
