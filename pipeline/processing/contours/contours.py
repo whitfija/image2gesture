@@ -17,22 +17,60 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from config import MIN_CONTOUR_AREA, SAMPLES_DIR, DEFECT_MIN_DEPTH
+from config import MIN_CONTOUR_AREA, SAMPLES_DIR, DEFECT_MIN_SCALE, CONTOUR_SMOOTH_EPS
 from processing.segmentation.segmentation import segment_skin
 from processing.morphology.morphology import apply_morphology
 
-def get_largest_contour(mask: np.ndarray):
-    """Find contours, return only the largest by area (that's the hand)."""
+def is_valid_hand_contour(contour, frame_shape) -> bool:
+    """reject contours that are likely arms, wrists, or background blobs."""
+    frame_h, frame_w = frame_shape[:2]
+    x, y, w, h = cv2.boundingRect(contour)
+
+    # too tall
+    if h > frame_h * 0.65:
+        return False
+
+    # too thin
+    aspect = w / h if h > 0 else 0
+    if aspect < 0.15:
+        return False
+
+    # too solid, probably not a hand
+    hull_area = cv2.contourArea(cv2.convexHull(contour))
+    solidity = cv2.contourArea(contour) / hull_area if hull_area > 0 else 0
+    if solidity > 0.95:
+        return False
+
+    return True
+
+
+def get_largest_contour(mask: np.ndarray, frame_shape: tuple = None):
+    """
+    return largest valid hand contour.
+    falls back to largest contour if none pass validity check.
+    """
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None
-    largest = max(contours, key=cv2.contourArea)
-    if cv2.contourArea(largest) < MIN_CONTOUR_AREA:
+
+    # minimum area
+    contours = [c for c in contours if cv2.contourArea(c) >= MIN_CONTOUR_AREA]
+    if not contours:
         return None
-    return largest
+
+    # area descending
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+    # largest that passes validity check
+    if frame_shape is not None:
+        for contour in contours:
+            if is_valid_hand_contour(contour, frame_shape):
+                return contour
+
+    return contours[0]
 
 def get_convex_hull(contour):
-    """Compute convex hull of the hand contour."""
+    """convex hull of the hand contour."""
     return cv2.convexHull(contour)
 
 def get_convexity_defects(contour):
@@ -44,18 +82,27 @@ def get_convexity_defects(contour):
     hull_indices = cv2.convexHull(contour, returnPoints=False)
     if hull_indices is None or len(hull_indices) < 3:
         return None
-    defects = cv2.convexityDefects(contour, hull_indices)
-    return defects
+    try:
+        defects = cv2.convexityDefects(contour, hull_indices)
+        return defects
+    except cv2.error:
+        return None
 
-def filter_defects(defects, contour, min_depth: float = DEFECT_MIN_DEPTH) -> list:
+def filter_defects(defects, contour, min_depth: float = None) -> list:
     """
-    Filter defects by depth to remove noise.
+    filter defects by depth to remove noise
     min_depth filters out shallow defects that aren't real finger valleys.
     Returns list of (start, end, far) point tuples.
     """
     filtered = []
     if defects is None:
         return filtered
+    
+    # depth, scale with contour size
+    if min_depth is None:
+        area = cv2.contourArea(contour)
+        min_depth = area * DEFECT_MIN_SCALE
+
     for defect in defects:
         start_idx, end_idx, far_idx, depth = defect[0]
         if depth > min_depth:
@@ -63,11 +110,16 @@ def filter_defects(defects, contour, min_depth: float = DEFECT_MIN_DEPTH) -> lis
             end   = tuple(contour[end_idx][0])
             far   = tuple(contour[far_idx][0])
             filtered.append((start, end, far))
+
     return filtered
 
 def count_fingers(defects: list) -> int:
-    """Estimate finger count from defect count. Defects = valleys between fingers."""
-    return len(defects) + 1 if defects else 1
+    """
+    estimate finger count from defect count. 
+    defects = valleys between fingers.
+    """
+    # return len(defects) + 1 if defects else 1
+    return len(defects) if defects else 0
 
 def get_hu_moments(contour) -> np.ndarray:
     """
@@ -113,14 +165,19 @@ def draw_contour_overlay(frame: np.ndarray, contour, hull, defects: list) -> np.
     return overlay
 
 def extract_contour_features(mask: np.ndarray, frame: np.ndarray) -> dict:
-    """
-    full contour pipeline, returns all needed features
-    """
-    contour = get_largest_contour(mask)
+    """full contour pipeline, returns all needed features"""
+
+    contour = get_largest_contour(mask, frame_shape=frame.shape)
     if contour is None:
         return {"contour": None}
 
     hull        = get_convex_hull(contour)
+
+    # smooth contour to reduce noise in defects
+    if CONTOUR_SMOOTH_EPS > 0:
+        epsilon = CONTOUR_SMOOTH_EPS * cv2.arcLength(contour, True)
+        contour = cv2.approxPolyDP(contour, epsilon, True)
+
     raw_defects = get_convexity_defects(contour)
     defects     = filter_defects(raw_defects, contour)
     finger_count= count_fingers(defects)

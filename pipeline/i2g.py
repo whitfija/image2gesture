@@ -18,7 +18,7 @@ import argparse
 import os
 import sys
 
-from config import SAMPLES_DIR, OUTPUT_DIR, SHOW_DEBUG_VIEW
+from config import SAMPLES_DIR, OUTPUT_DIR, SHOW_DEBUG_VIEW, HSV_LOWER, HSV_UPPER
 from processing.segmentation.segmentation import segment_skin
 from processing.morphology.morphology import apply_morphology
 from processing.contours.contours import extract_contour_features
@@ -147,7 +147,6 @@ def run_static(templates: dict, image_path: str = None):
     cv2.destroyAllWindows()
     print("\nstatic run complete.")
 
-
 def run_live(templates: dict):
     """
     live mode
@@ -185,13 +184,94 @@ def run_live(templates: dict):
     cv2.destroyAllWindows()
     print("Live mode ended.")
 
-# cli
+def run_calibrate():
+    """
+    live calibration mode
+    'p' - pause/unpause feed
+    's' - save current HSV values to hsv_config.json
+    'q' - quit calibration
+    """
+    from processing.segmentation.segmentation import save_hsv_config, load_hsv_config, get_hsv_range
 
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("could not open webcam.")
+        return
+
+    def nothing(x): pass
+
+    cached = load_hsv_config()
+    if cached:
+        current_lower, current_upper = cached
+        print("Starting from saved HSV calibration.")
+    else:
+        current_lower, current_upper = HSV_LOWER, HSV_UPPER
+        print("No saved calibration found, starting from config defaults.")
+
+    cv2.namedWindow("Calibrate")
+    cv2.createTrackbar("H_min", "Calibrate", current_lower[0], 179, nothing)
+    cv2.createTrackbar("H_max", "Calibrate", current_upper[0], 179, nothing)
+    cv2.createTrackbar("S_min", "Calibrate", current_lower[1], 255, nothing)
+    cv2.createTrackbar("S_max", "Calibrate", current_upper[1], 255, nothing)
+    cv2.createTrackbar("V_min", "Calibrate", current_lower[2], 255, nothing)
+    cv2.createTrackbar("V_max", "Calibrate", current_upper[2], 255, nothing)
+
+    paused = False
+    frozen = None
+    print("\nCalibration mode. 'p' pause, 's' save, 'q' quit.")
+
+    while True:
+        if not paused:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame = cv2.resize(frame, (640, 480))
+            frozen = frame.copy()
+        else:
+            frame = frozen.copy()
+
+        h1 = cv2.getTrackbarPos("H_min", "Calibrate")
+        h2 = cv2.getTrackbarPos("H_max", "Calibrate")
+        s1 = cv2.getTrackbarPos("S_min", "Calibrate")
+        s2 = cv2.getTrackbarPos("S_max", "Calibrate")
+        v1 = cv2.getTrackbarPos("V_min", "Calibrate")
+        v2 = cv2.getTrackbarPos("V_max", "Calibrate")
+
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, np.array([h1,s1,v1]), np.array([h2,s2,v2]))
+        mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
+        status = "PAUSED - tuning" if paused else "LIVE - press 'p' to pause"
+        cv2.putText(frame, status, (10, 25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+        combined = np.hstack([frame, mask_bgr])
+        cv2.imshow("Calibrate", combined)
+
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('p'):
+            paused = not paused
+            print("Paused." if paused else "Resumed.")
+        elif key == ord('s'):
+            lower = (h1, s1, v1)
+            upper = (h2, s2, v2)
+            save_hsv_config(lower, upper)
+            print(f"Saved: lower={lower} upper={upper}")
+        elif key == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+# args
 def parse_args():
     parser = argparse.ArgumentParser(description="image2gesture pipeline")
+    
     parser.add_argument("--live",    action="store_true", help="Run live webcam mode")
     parser.add_argument("--rebuild", action="store_true", help="Rebuild Hu templates from samples")
     parser.add_argument("--image",   type=str, default=None, help="Run on a single image path")
+    parser.add_argument("--calibrate", action="store_true", help="Launch live HSV calibration")
+    
     return parser.parse_args()
 
 
@@ -208,5 +288,11 @@ if __name__ == "__main__":
 
     if args.live:
         run_live(templates)
+        sys.exit(0)
+
+    if args.calibrate:
+        run_calibrate()
+        sys.exit(0)
+
     else:
         run_static(templates, image_path=args.image)

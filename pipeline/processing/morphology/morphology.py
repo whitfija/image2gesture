@@ -4,7 +4,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from config import MORPH_KERNEL_SIZE, SAMPLES_DIR
+from config import MORPH_KERNEL_SIZE, MORPH_CLOSE_KERNEL_SIZE, SAMPLES_DIR
 from processing.segmentation.segmentation import segment_skin
 
 def apply_morphology(mask: np.ndarray) -> dict[str, np.ndarray]:
@@ -20,7 +20,7 @@ def apply_morphology(mask: np.ndarray) -> dict[str, np.ndarray]:
     configure small kernel in config.py
     """
     kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, MORPH_KERNEL_SIZE)
-    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, MORPH_CLOSE_KERNEL_SIZE)
 
     opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_small)
     closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel_large)
