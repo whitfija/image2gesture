@@ -25,16 +25,17 @@ FINGER_COUNT_MAP = {
 ASPECT_RATIO_MAP = {
     "open":   (0.6, 1.0),
     "peace":  (0.2, 0.6),
-    "thumb":  (0.25, 0.4),
+    "thumb":  (0.25, 0.38),
     "L":      (0.55, 1.0),
     "closed": (0.6, 1.1),
 }
 
 def classify_rule_based(features: dict) -> tuple[str, float]:
     """
-    Rule-based classifier using finger count + aspect ratio.
-    Returns (gesture_label, confidence).
-    Confidence is a simple score - number of rules matched / total rules.
+    rule-based classifier
+    uses finger count + aspect ratio.
+    Returns (gesture_label, confidence)
+    confidence = number of rules matched / total rules.
     """
     if features.get("contour") is None:
         return "none", 0.0
@@ -48,12 +49,10 @@ def classify_rule_based(features: dict) -> tuple[str, float]:
         score = 0
         total = 2
 
-        # Finger count match
         lo, hi = FINGER_COUNT_MAP[gesture]
         if lo <= finger_count <= hi:
             score += 1
 
-        # Aspect ratio match
         alo, ahi = ASPECT_RATIO_MAP[gesture]
         if alo <= aspect_ratio <= ahi:
             score += 1
@@ -171,6 +170,19 @@ if __name__ == "__main__":
         print(f"  Fingers:     {features.get('finger_count', 'N/A')}")
         print(f"  Aspect:      {features.get('aspect_ratio', 'N/A'):.3f}" 
               if features.get('aspect_ratio') else "  Aspect: N/A")
+
+        # full distance matrix for debugging
+        if features.get("hu_moments") is not None:
+            hu = features["hu_moments"]
+            distances = {
+                label: float(np.linalg.norm(hu - tmpl))
+                for label, tmpl in templates.items()
+            }
+            ranked = sorted(distances.items(), key=lambda x: x[1])
+            print(f"  Hu distances (nearest first):")
+            for lbl, dist in ranked:
+                marker = " <-- true" if lbl == gesture else ""
+                print(f"    {lbl:<8} {dist:.4f}{marker}")
 
         if features.get("overlay") is not None:
             grid = make_debug_view(

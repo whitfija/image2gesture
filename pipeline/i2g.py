@@ -76,17 +76,23 @@ def classify_combined(features: dict, templates: dict) -> tuple[str, np.ndarray]
     rule-based classification, tie break with Hu moments if confidence is low.
     Returns (label, overlay_with_label)
     """
-    AMBIGUOUS_PAIRS = [{"thumb", "L"}, {"peace", "thumb"}]
+    AMBIGUOUS_PAIRS = [{"thumb", "L"}, {"peace", "thumb"}, {"peace", "L"}]
 
     rule_label, rule_conf = classify_rule_based(features)
     final_label = rule_label
 
     for pair in AMBIGUOUS_PAIRS:
-        if rule_label in pair and rule_conf < 1.0:
+        if rule_label in pair and rule_conf < 0.75:
             hu_label, _ = classify_hu(features, templates)
-            if hu_label in pair:
+            # tiebreakers
+            if rule_conf <= 0.5:
+                # rules are split, Hu decides
                 final_label = hu_label
-                break
+            elif hu_label in pair:
+                # rules lean one way, Hu confirms or flips within pair
+                final_label = hu_label
+            break
+
 
     overlay = features["overlay"].copy()
     cv2.putText(overlay, f"Gesture: {final_label}", (10, 460),
@@ -151,16 +157,28 @@ def run_live(templates: dict):
     """
     live mode
     webcam loop.
-    Press 'q' to quit, 's' to save current frame to output/.
+
+    controls:
+      'd' - debug view only
+      'f' - filter view only
+      'b' - both side by side
+      's' - save current frame(s) to output/
+      'q' - quit
+
     """
+    from filters.filters import apply_filter
+
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("could not open webcam.")
         return
 
-    print("\nlive mode active. Press 'q' to quit, 's' to save frame.")
-
+    view_mode = 'd'
+    print("\nlive mode active.")
+    print("  'd' debug view | 'f' filter view | 'b' both | 's' save | 'q' quit")
+    
     frame_count = 0
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -168,21 +186,49 @@ def run_live(templates: dict):
             break
 
         grid, results = run_pipeline(frame, templates)
+        label = results["label"]
 
-        show_debug_view(grid, window_name="i2g live")
+        raw_resized = cv2.resize(frame, (400, 300))
+        filter_view = apply_filter(raw_resized, label)
 
+        # view toggle
+        if view_mode == 'd':
+            show_debug_view(grid, window_name="i2g | debug")
+            # cv2.destroyWindow("i2g | filter")
+        elif view_mode == 'f':
+            cv2.imshow("i2g | filter", filter_view)
+            # cv2.destroyWindow("i2g | debug")
+        elif view_mode == 'b':
+            show_debug_view(grid, window_name="i2g | debug")
+            cv2.imshow("i2g | filter", filter_view)
+
+        # controls
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
+        elif key == ord('d'):
+            view_mode = 'd'
+            print("view: debug")
+        elif key == ord('f'):
+            view_mode = 'f'
+            print("view: filter")
+        elif key == ord('b'):
+            view_mode = 'b'
+            print("view: both")
         elif key == ord('s'):
-            out_path = os.path.join(OUTPUT_DIR, f"live_capture_{frame_count:04d}.png")
-            save_debug_view(grid, out_path)
-            print(f"Saved: {out_path}")
+            if view_mode in ('d', 'b'):
+                out_path = os.path.join(OUTPUT_DIR, f"live_debug_{frame_count:04d}.png")
+                save_debug_view(grid, out_path)
+                print(f"Saved debug: {out_path}")
+            if view_mode in ('f', 'b'):
+                out_path = os.path.join(OUTPUT_DIR, f"live_filter_{frame_count:04d}.png")
+                cv2.imwrite(out_path, filter_view)
+                print(f"Saved filter: {out_path}")
             frame_count += 1
 
     cap.release()
     cv2.destroyAllWindows()
-    print("Live mode ended.")
+    print("live mode ended.")
 
 def run_calibrate():
     """
