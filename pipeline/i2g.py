@@ -4,12 +4,20 @@ cli entry point for image2gesture pipeline
 usage:
 # static mode on test images
 python i2g.py
+
 # live webcam mode
 python i2g.py --live
+
 # run on a single image
 python i2g.py --image path/to/image.jpg
+
 # rebuild Hu templates from samples (run once after adding new samples)
 python i2g.py --rebuild
+
+# eval mode
+# static on data/eval/ with ground truth labels as folder names
+# expects: data/eval/open/, data/eval/closed/, etc.
+python i2g.py --eval
 
 """
 import cv2
@@ -18,7 +26,7 @@ import argparse
 import os
 import sys
 
-from config import SAMPLES_DIR, OUTPUT_DIR, SHOW_DEBUG_VIEW, HSV_LOWER, HSV_UPPER
+from config import SAMPLES_DIR, OUTPUT_DIR, DATA_DIR, SHOW_DEBUG_VIEW, HSV_LOWER, HSV_UPPER
 from processing.segmentation.segmentation import segment_skin
 from processing.morphology.morphology import apply_morphology
 from processing.contours.contours import extract_contour_features
@@ -27,7 +35,7 @@ from processing.classification.classification import (
 )
 from debug_view import make_debug_view, show_debug_view, save_debug_view
 
-TEST_DIR = os.path.join(os.path.dirname(__file__), "data", "test_run_1")
+TEST_DIR = os.path.join(DATA_DIR, "input")
 
 def run_pipeline(frame: np.ndarray, templates: dict) -> tuple[np.ndarray, dict]:
     """
@@ -99,6 +107,13 @@ def classify_combined(features: dict, templates: dict) -> tuple[str, np.ndarray]
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 200, 255), 2)
 
     return final_label, overlay
+
+def destroy_if_exists(window_name):
+    try:
+        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 0:
+            cv2.destroyWindow(window_name)
+    except:
+        pass
 
 # cli modes
 
@@ -194,10 +209,10 @@ def run_live(templates: dict):
         # view toggle
         if view_mode == 'd':
             show_debug_view(grid, window_name="i2g | debug")
-            # cv2.destroyWindow("i2g | filter")
+            destroy_if_exists("i2g | filter")
         elif view_mode == 'f':
             cv2.imshow("i2g | filter", filter_view)
-            # cv2.destroyWindow("i2g | debug")
+            destroy_if_exists("i2g | debug")
         elif view_mode == 'b':
             show_debug_view(grid, window_name="i2g | debug")
             cv2.imshow("i2g | filter", filter_view)
@@ -309,14 +324,117 @@ def run_calibrate():
     cap.release()
     cv2.destroyAllWindows()
 
+def run_eval(templates: dict):
+    """
+    eval mode
+    expects data/eval/<gesture>/ folders where folder name = ground truth label.
+    computes per-gesture accuracy and prints a confusion matrix.
+    """
+    from sklearn.metrics import classification_report, confusion_matrix
+
+    EVAL_DIR = os.path.join(DATA_DIR, "eval")
+    GESTURE_LABELS = ["open", "closed", "peace", "thumb", "L"]
+    EXTS = (".jpg", ".jpeg", ".png")
+
+    if not os.path.isdir(EVAL_DIR):
+        print(f"eval directory not found: {EVAL_DIR}")
+        print("create data/eval/ with subfolders named by gesture label.")
+        return
+
+    print(f"\nrunning evaluation on {EVAL_DIR}...")
+
+    y_true, y_pred = [], []
+    per_gesture = {g: {"correct": 0, "total": 0} for g in GESTURE_LABELS}
+
+    for true_label in GESTURE_LABELS:
+        folder = os.path.join(EVAL_DIR, true_label)
+        if not os.path.isdir(folder):
+            print(f"  [skip] no folder for '{true_label}'")
+            continue
+
+        paths = [
+            os.path.join(folder, f)
+            for f in sorted(os.listdir(folder))
+            if f.lower().endswith(EXTS)
+        ]
+        if not paths:
+            print(f"  [skip] no images in {folder}")
+            continue
+
+        print(f"\n[{true_label}] — {len(paths)} images")
+        for path in paths:
+            frame = cv2.imread(path)
+            if frame is None:
+                print(f"  could not load: {path}")
+                continue
+
+            _, results = run_pipeline(frame, templates)
+            pred_label = results["label"]
+
+            y_true.append(true_label)
+            y_pred.append(pred_label)
+            per_gesture[true_label]["total"] += 1
+            if pred_label == true_label:
+                per_gesture[true_label]["correct"] += 1
+
+            marker = "CORRECT" if pred_label == true_label else f"INCORRECT (guessed: {pred_label})"
+            print(f"  {os.path.basename(path):<30} {marker}")
+
+    if not y_true:
+        print("No images evaluated.")
+        return
+
+    # per-gesture accuracy summary
+    print("\n--- per-gesture accuracy ---")
+    for g in GESTURE_LABELS:
+        t = per_gesture[g]["total"]
+        if t == 0:
+            continue
+        c = per_gesture[g]["correct"]
+        print(f"  {g:<10} {c}/{t}  ({100*c/t:.0f}%)")
+
+    overall = sum(1 for a, b in zip(y_true, y_pred) if a == b)
+    print(f"\n  overall: {overall}/{len(y_true)}  ({100*overall/len(y_true):.0f}%)")
+
+    # confusion matrix
+    print("\n--- confusion matrix ---")
+    labels_present = sorted(set(y_true))
+    cm = confusion_matrix(y_true, y_pred, labels=labels_present)
+    header = f"{'':>10}" + "".join(f"{l:>10}" for l in labels_present)
+    print(f"{header}  (predicted)")
+    for i, row_label in enumerate(labels_present):
+        row = "".join(f"{v:>10}" for v in cm[i])
+        print(f"{row_label:>10}{row}")
+
+    # sklearn report
+    print("\n--- classification report ---")
+    print(classification_report(y_true, y_pred, labels=labels_present, zero_division=0))
+
+    # save results to output/
+    out_path = os.path.join(OUTPUT_DIR, "eval_results.txt")
+    with open(out_path, "w") as f:
+        f.write("per-gesture accuracy\n")
+        for g in GESTURE_LABELS:
+            t = per_gesture[g]["total"]
+            if t == 0: continue
+            c = per_gesture[g]["correct"]
+            f.write(f"  {g}: {c}/{t} ({100*c/t:.0f}%)\n")
+        f.write(f"\noverall: {overall}/{len(y_true)} ({100*overall/len(y_true):.0f}%)\n\n")
+        f.write("confusion matrix\n")
+        f.write(f"{header} (predicted)\n")
+        f.write("classification report\n")
+        f.write(classification_report(y_true, y_pred, labels=labels_present, zero_division=0))
+    print(f"\nresults saved to {out_path}")
+
 # args
 def parse_args():
     parser = argparse.ArgumentParser(description="image2gesture pipeline")
     
-    parser.add_argument("--live",    action="store_true", help="Run live webcam mode")
-    parser.add_argument("--rebuild", action="store_true", help="Rebuild Hu templates from samples")
-    parser.add_argument("--image",   type=str, default=None, help="Run on a single image path")
-    parser.add_argument("--calibrate", action="store_true", help="Launch live HSV calibration")
+    parser.add_argument("--live",    action="store_true", help="run live webcam mode")
+    parser.add_argument("--rebuild", action="store_true", help="rebuild Hu templates from samples")
+    parser.add_argument("--image",   type=str, default=None, help="run on a single image path")
+    parser.add_argument("--calibrate", action="store_true", help="launch live HSV calibration")
+    parser.add_argument("--eval", action="store_true", help="run accuracy eval on data/eval/")
     
     return parser.parse_args()
 
@@ -338,6 +456,10 @@ if __name__ == "__main__":
 
     if args.calibrate:
         run_calibrate()
+        sys.exit(0)
+
+    if args.eval:
+        run_eval(templates)
         sys.exit(0)
 
     else:
