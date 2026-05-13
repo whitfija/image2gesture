@@ -85,7 +85,7 @@ Outputs per-gesture accuracy, a confusion matrix, and a full classification repo
 
 ---
 
-## Dependencies
+## dependencies
 
 install via:
 
