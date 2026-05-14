@@ -1,0 +1,29 @@
+per-gesture accuracy
+  open: 2/3 (67%)
+  closed: 1/3 (33%)
+  peace: 2/3 (67%)
+  thumb: 0/3 (0%)
+  L: 0/3 (0%)
+
+overall: 5/15 (33%)
+
+confusion matrix
+                   L    closed      open     peace     thumb
+         L         0         0         2         0         0
+    closed         0         1         0         0         0
+      open         0         0         2         0         0
+     peace         0         0         0         2         0
+     thumb         0         0         0         1         0
+                   L    closed      open     peace     thumb (predicted)
+classification report
+              precision    recall  f1-score   support
+
+           L       0.00      0.00      0.00         3
+      closed       1.00      0.33      0.50         3
+        open       0.50      0.67      0.57         3
+       peace       0.67      0.67      0.67         3
+       thumb       0.00      0.00      0.00         3
+
+   micro avg       0.62      0.33      0.43        15
+   macro avg       0.43      0.33      0.35        15
+weighted avg       0.43      0.33      0.35        15

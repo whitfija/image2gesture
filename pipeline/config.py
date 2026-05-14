@@ -23,7 +23,7 @@ MORPH_CLOSE_KERNEL_SIZE = (14, 14)  # closing, hole filling, around15
 MIN_CONTOUR_AREA = 4000
 # defect depth threshold for counting fingers
 # fraction of bounding box
-DEFECT_MIN_SCALE = 0.7
+DEFECT_MIN_SCALE = 0.9
 # smoothing, fraction of contour arc length, higher = smoother
 CONTOUR_SMOOTH_EPS  = 0.005
 

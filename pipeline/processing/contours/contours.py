@@ -118,8 +118,8 @@ def count_fingers(defects: list) -> int:
     estimate finger count from defect count. 
     defects = valleys between fingers.
     """
-    # return len(defects) + 1 if defects else 1
-    return len(defects) if defects else 0
+    return len(defects) + 1 if defects else 1
+    # return len(defects) if defects else 0
 
 def get_hu_moments(contour) -> np.ndarray:
     """

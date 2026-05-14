@@ -14,19 +14,19 @@ TEMPLATES_PATH = os.path.join(DATA_DIR, "hu_templates.json")
 
 # rule-based thresholds
 FINGER_COUNT_MAP = {
-    "open":   (3, 5),
-    "peace":  (1, 3),
-    "thumb":  (0, 2),
-    "L":      (1, 3),
+    "open":   (4, 5),
+    "peace":  (2, 3),
+    "thumb":  (1, 2),
+    "L":      (2, 3),
     "closed": (0, 1),
 }
 
 # aspect ratio ranges (width/height) per gesture
 ASPECT_RATIO_MAP = {
-    "open":   (0.6, 1.0),
-    "peace":  (0.2, 0.6),
-    "thumb":  (0.25, 0.38),
-    "L":      (0.55, 1.0),
+    "open":   (0.7, 1.0),
+    "peace":  (0.3, 0.6),
+    "thumb":  (0.3, 0.7),
+    "L":      (0.65, 0.9),
     "closed": (0.6, 1.1),
 }
 

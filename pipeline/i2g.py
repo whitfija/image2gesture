@@ -14,10 +14,13 @@ python i2g.py --image path/to/image.jpg
 # rebuild Hu templates from samples (run once after adding new samples)
 python i2g.py --rebuild
 
-# eval mode
+# evaluate accuracy on a set of labeled test images
 # static on data/eval/ with ground truth labels as folder names
 # expects: data/eval/open/, data/eval/closed/, etc.
 python i2g.py --eval
+
+# live HSV calibration mode
+python i2g.py --calibrate
 
 """
 import cv2
