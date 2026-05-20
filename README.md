@@ -4,7 +4,7 @@
 
 a multi-stage classical image processing pipeline for real-time hand gesture recognition using a standard webcam. recognizes 5 hand gestures and applies live image filter effects driven by the detected gesture.
 
-*For I2200/EE4710: Introduction to Digital Image Processing — City College of New York*
+*For I2200/EE4710: Introduction to Digital Image Processing - City College of New York*
 *Spring 2026*
 
 ---
@@ -144,9 +144,9 @@ CONTOUR_SMOOTH_EPS = 0.005
 
 `MIN_CONTOUR_AREA` - contours smaller than this (in pixels) are rejected as noise
 
-`DEFECT_MIN_SCALE` — convexity defects shallower than `contour_area * DEFECT_MIN_SCALE` are ignored when counting fingers
+`DEFECT_MIN_SCALE` - convexity defects shallower than `contour_area * DEFECT_MIN_SCALE` are ignored when counting fingers
 
-`CONTOUR_SMOOTH_EPS` — smoothing applied via `approxPolyDP`, fraction of contour arc length
+`CONTOUR_SMOOTH_EPS` - smoothing applied via `approxPolyDP`, fraction of contour arc length
 
 ### classification thresholds
 
