@@ -204,9 +204,9 @@ if __name__ == "__main__":
     from debug_view import make_debug_view, show_debug_view, save_debug_view
 
     # L, open, closed, peace, thumb
-    gesture = "closed"
+    gesture = "thumb"
     folder  = os.path.join(SAMPLES_DIR, gesture)
-    img_file = os.listdir(folder)[0]
+    img_file = os.listdir(folder)[1]
 
     frame = cv2.imread(os.path.join(folder, img_file))
     frame = cv2.resize(frame, (400, 300))

@@ -1,7 +1,7 @@
 # config.py
 import os
 
-# Paths
+# paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SAMPLES_DIR = os.path.join(BASE_DIR, "data", "samples")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
@@ -9,7 +9,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 # HSV skin segmentation ranges
 # use hsv_tuner.py to find optimal values
-# i2g with--calibrate option to sample HSV values from webcam
+# i2g with --calibrate option to sample HSV values from webcam
 HSV_LOWER = (0, 43, 116)
 HSV_UPPER = (179, 144, 255)
 

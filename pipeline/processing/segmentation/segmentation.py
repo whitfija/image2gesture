@@ -65,8 +65,9 @@ if __name__ == "__main__":
     # L, open, closed, peace, thumb
     gesture = "thumb"
     folder = os.path.join(SAMPLES_DIR, gesture)
-    img_file = os.listdir(folder)[0]
+    img_file = os.listdir(folder)[1]
     img_path = os.path.join(folder, img_file)
+    print(f"Testing segmentation on {img_path}")
 
     frame = cv2.imread(img_path)
     frame = cv2.resize(frame, (640, 480))

@@ -152,7 +152,7 @@ if __name__ == "__main__":
         if not os.path.exists(folder):
             continue
 
-        img_file = os.listdir(folder)[0]
+        img_file = os.listdir(folder)[1]
         frame    = cv2.imread(os.path.join(folder, img_file))
         frame    = cv2.resize(frame, (640, 480))
 
