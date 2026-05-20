@@ -1,6 +1,6 @@
 # image2gesture
 
-
+<img style="width:200px; height:auto;" src="https://github.com/whitfija/image2gesture/blob/main/documentation/logo.png?raw=true" alt="logo">
 
 a multi-stage classical image processing pipeline for real-time hand gesture recognition using a standard webcam. recognizes 5 hand gestures and applies live image filter effects driven by the detected gesture.
 
