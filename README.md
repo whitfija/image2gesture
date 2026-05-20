@@ -1,6 +1,8 @@
 # image2gesture
 
-A multi-stage classical image processing pipeline for real-time hand gesture recognition using a standard webcam. Recognizes 5 hand gestures and applies live image filter effects driven by the detected gesture.
+
+
+a multi-stage classical image processing pipeline for real-time hand gesture recognition using a standard webcam. recognizes 5 hand gestures and applies live image filter effects driven by the detected gesture.
 
 *For I2200/EE4710: Introduction to Digital Image Processing — City College of New York*
 *Spring 2026*
@@ -10,7 +12,7 @@ A multi-stage classical image processing pipeline for real-time hand gesture rec
 ## gestures
 
 ```
-Gesture     -   Filter Effect
+gesture     -   filter effect
 -----------------------------------------
 Open palm   -   Gaussian blur
 Closed fist -   Histogram equalization
@@ -27,11 +29,11 @@ L           -   Halftone dots
 image frame --> HSV segmentation --> morphological cleanup --> contour extraction --> classification --> filter output
 ```
 
-- **Segmentation** - Gaussian blur pre-pass, HSV color segmentation with per-session calibration, ROI masking
-- **Morphology** - morphological opening (speckle removal) and closing (hole filling)
-- **Contour extraction** - convex hull, convexity defects, finger counting, bounding box aspect ratio, Hu moments
-- **Classification** - rule-based primary classifier (finger count + aspect ratio); Hu moment tiebreaker for ambiguous gesture pairs
-- **Filter output** - live filter view driven by gesture label, togglable alongside debug view
+- **segmentation** - Gaussian blur pre-pass, HSV color segmentation with per-session calibration, ROI masking
+- **morphology** - morphological opening (speckle removal) and closing (hole filling)
+- **contour extraction** - convex hull, convexity defects, finger counting, bounding box aspect ratio, Hu moments
+- **classification** - rule-based primary classifier (finger count + aspect ratio); Hu moment tiebreaker for ambiguous gesture pairs
+- **filter output** - live filter view driven by gesture label, togglable alongside debug view
 
 ---
 
@@ -50,19 +52,19 @@ python i2g.py --eval                 # accuracy eval against data/eval/ ground t
 
 | Key   | Action                                  |
 | ----- | --------------------------------------- |
-| `d` | Debug view (segmentation pipeline grid) |
-| `f` | Filter view (gesture-driven effect)     |
-| `b` | Both views side by side                 |
-| `s` | Save current frame(s) to 'output/'      |
-| `q` | Quit                                    |
+| `d` | debug view (segmentation pipeline grid) |
+| `f` | filter view (gesture-driven effect)     |
+| `b` | both views side by side                 |
+| `s` | save current frame(s) to 'output/'      |
+| `q` | quit                                    |
 
 ### calibrate mode controls
 
-| Key   | Action                                 |
+| key   | action                                 |
 | ----- | -------------------------------------- |
-| `p` | Pause / unpause feed                   |
-| `s` | Save HSV values to `hsv_config.json` |
-| `q` | Quit                                   |
+| `p` | pause / unpause feed                   |
+| `s` | save HSV values to `hsv_config.json` |
+| `q` | quit                                   |
 
 > HSV calibration should be run at the start of each session, skin segmentation is lighting-sensitive.
 
@@ -70,7 +72,7 @@ python i2g.py --eval                 # accuracy eval against data/eval/ ground t
 
 ## eval mode
 
-Expects ground-truth labeled folders under `data/eval/`:
+expects ground-truth labeled folders under `data/eval/`:
 
 ```
 data/eval/
@@ -81,7 +83,7 @@ data/eval/
 └── L/
 ```
 
-Outputs per-gesture accuracy, a confusion matrix, and a full classification report. Results saved to `output/eval_results.txt`.
+outputs per-gesture accuracy, a confusion matrix, and a full classification report. results saved to `output/eval_results.txt`.
 
 ---
 
@@ -97,7 +99,7 @@ pip install -r requirements.txt
 
 ## config
 
-All primary tuning parameters live in `config.py`. Classification thresholds are in `classification.py`.
+all primary tuning parameters live in `config.py`. classification thresholds are in `classification.py`.
 
 ### HSV segmentation
 
@@ -106,9 +108,9 @@ HSV_LOWER = (0, 43, 116)
 HSV_UPPER = (179, 144, 255)
 ```
 
-HSV range for skin segmentation. Actual values are loaded from `hsv_config.json` at runtime
+HSV range for skin segmentation. actual values are loaded from `hsv_config.json` at runtime
 
-Run `--calibrate` to tune for your lighting and skin tone and save a session config. Uses `config.py` values as backup
+run `--calibrate` to tune for your lighting and skin tone and save a session config. uses `config.py` values as backup
 
 ### ROI
 
@@ -119,7 +121,7 @@ ROI_LEFT   = 0.05
 ROI_RIGHT  = 0.05
 ```
 
-Fraction of the frame to ignore around each edge
+fraction of the frame to ignore around each edge
 
 ### morphology
 
